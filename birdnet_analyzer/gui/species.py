@@ -37,6 +37,7 @@ def build_species_tab():
 
             if dir_name:
                 loc.set_state("species-output-dir", dir_name)
+
                 return (
                     dir_name,
                     gr.Textbox(label=dir_name, visible=True, value=name_tb),
@@ -51,7 +52,7 @@ def build_species_tab():
             show_progress=False,
         )
 
-        lat_number, lon_number, week_number, sf_thresh_number, yearlong_checkbox = gu.species_list_coordinates()
+        lat_number, lon_number, week_number, sf_thresh_number, yearlong_checkbox, map_plot = gu.species_list_coordinates(big_map=True)
 
         sortby = gr.Radio(
             [
@@ -78,6 +79,8 @@ def build_species_tab():
             ],
         )
 
+    return lat_number, lon_number, map_plot
+        
 
 if __name__ == "__main__":
     gu.open_window(build_species_tab)

@@ -57,6 +57,12 @@ function init() {
         document.head.appendChild(styles);
     }
 
+    function initialResize() {
+        console.log("Resizing window");
+        window.resizeTo(1025, 768);
+    }
+
     checkForNewerVersion();
     overwriteStyles();
+    initialResize();
 }

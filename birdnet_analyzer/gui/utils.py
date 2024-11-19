@@ -297,23 +297,44 @@ def locale():
     )
 
 
-def species_list_coordinates():
-    lat_number = gr.Slider(
-        minimum=-90,
-        maximum=90,
-        value=0,
-        step=1,
-        label=loc.localize("species-list-coordinates-lat-number-label"),
-        info=loc.localize("species-list-coordinates-lat-number-info"),
-    )
-    lon_number = gr.Slider(
-        minimum=-180,
-        maximum=180,
-        value=0,
-        step=1,
-        label=loc.localize("species-list-coordinates-lon-number-label"),
-        info=loc.localize("species-list-coordinates-lon-number-info"),
-    )
+def update_map(lat, lon):
+    import plotly.express as px
+
+    # fig = px.scatter_map(lat=[lat], lon=[lon], zoom=3)
+    fig = px.scatter_mapbox(lat=[lat], lon=[lon], zoom=3, mapbox_style="open-street-map")
+
+    fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+
+    return fig
+
+
+def species_list_coordinates(big_map=False):
+    with gr.Row(equal_height=True):
+        with gr.Column(scale=1):
+            lat_number = gr.Slider(
+                minimum=-90,
+                maximum=90,
+                value=0,
+                step=1,
+                label=loc.localize("species-list-coordinates-lat-number-label"),
+                info=loc.localize("species-list-coordinates-lat-number-info"),
+            )
+            lon_number = gr.Slider(
+                minimum=-180,
+                maximum=180,
+                value=0,
+                step=1,
+                label=loc.localize("species-list-coordinates-lon-number-label"),
+                info=loc.localize("species-list-coordinates-lon-number-info"),
+            )
+        map_plot = gr.Plot(show_label=False, scale=2 if big_map else None)
+
+        def print_test(lat, lon):
+            print(lat, lon)
+
+        lat_number.change(update_map, inputs=[lat_number, lon_number], outputs=[map_plot], show_progress=False)
+        lon_number.change(update_map, inputs=[lat_number, lon_number], outputs=[map_plot], show_progress=False)
+        map_plot.change(print_test, inputs=[lat_number, lon_number], show_progress=False)
     with gr.Row():
         yearlong_checkbox = gr.Checkbox(True, label=loc.localize("species-list-coordinates-yearlong-checkbox-label"))
         week_number = gr.Slider(
@@ -339,7 +360,7 @@ def species_list_coordinates():
         info=loc.localize("species-list-coordinates-threshold-slider-info"),
     )
 
-    return lat_number, lon_number, week_number, sf_thresh_number, yearlong_checkbox
+    return lat_number, lon_number, week_number, sf_thresh_number, yearlong_checkbox, map_plot
 
 
 def select_file(filetypes=(), state_key=None):
@@ -428,7 +449,9 @@ def species_lists(opened=True):
             )
 
             with gr.Column(visible=False) as position_row:
-                lat_number, lon_number, week_number, sf_thresh_number, yearlong_checkbox = species_list_coordinates()
+                lat_number, lon_number, week_number, sf_thresh_number, yearlong_checkbox, map_plot = (
+                    species_list_coordinates()
+                )
 
             species_file_input = gr.File(
                 file_types=[".txt"], visible=False, label=loc.localize("species-list-custom-list-file-label")
@@ -474,6 +497,7 @@ def species_lists(opened=True):
                 sf_thresh_number,
                 yearlong_checkbox,
                 selected_classifier_state,
+                map_plot,
             )
 
 
@@ -494,14 +518,32 @@ def open_window(builder: list[Callable] | Callable):
     ) as demo:
         build_header()
 
+        map_plots = []
+
         if callable(builder):
-            builder()
+            map_plots.append(builder())
         elif isinstance(builder, (tuple, set, list)):
             for build in builder:
-                build()
+                map_plots.append(build())
 
         build_settings()
         build_footer()
+
+        map_plots = [plot for plot in map_plots if plot]
+
+        if map_plots:
+            inputs = []
+            outputs = []
+            for lat, lon, plot in map_plots:
+                inputs.extend([lat, lon])
+                outputs.append(plot)
+
+            def update_plots(*args):
+                import itertools
+
+                return [update_map(lat, lon) for lat, lon in itertools.pairwise(args)]
+
+            demo.load(update_plots, inputs=inputs, outputs=outputs)
 
     url = demo.queue(api_open=False).launch(
         prevent_thread_lock=True,
@@ -518,4 +560,4 @@ def open_window(builder: list[Callable] | Callable):
 
         pyi_splash.close()
 
-    webview.start(private_mode=False)
+    webview.start(private_mode=False, debug=True)
